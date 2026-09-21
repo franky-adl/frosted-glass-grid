@@ -3,11 +3,77 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Frosted Glass Cubes</title>
+        <title>Lucent — The Quiet Geometry Of Light</title>
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        <link
+            href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
         <link rel="stylesheet" href="./style.css" />
     </head>
     <body>
         <canvas class="webgl"></canvas>
+
+        <div class="overlay">
+            <header class="nav">
+                <a class="brand" href="#top">
+                    <span class="brand-mark" aria-hidden="true">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </span>
+                    Lucent
+                </a>
+
+                <nav class="nav-links" aria-label="Primary">
+                    <a href="#work"
+                        ><span class="nav-index">01.</span> Work</a
+                    >
+                    <a href="#approach"
+                        ><span class="nav-index">02.</span> Approach</a
+                    >
+                    <a href="#index"><span class="nav-index">03.</span> Index</a>
+                </nav>
+
+                <div class="nav-actions">
+                    <a class="btn btn-outline" href="#archive">Archive</a>
+                    <a class="btn btn-solid" href="#enquire">Enquire</a>
+                </div>
+            </header>
+
+            <section class="hero">
+                <div class="hero-copy">
+                    <p class="status">
+                        <span class="status-dot" aria-hidden="true"></span>
+                        Light status: Steady
+                    </p>
+
+                    <h1>The Quiet<br />Geometry<br />Of Light</h1>
+
+                    <p class="lede">
+                        A studio for spatial interfaces, optical<br />
+                        materials, and the spaces in between.
+                    </p>
+
+                    <div class="cta">
+                        <a class="btn btn-solid btn-cta" href="#work"
+                            >View the work <span class="cta-arrow" aria-hidden="true">→</span></a
+                        >
+                        <p class="fine-print">
+                            Commissions open • Worldwide
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
         <script type="module" src="./script.js"></script>
     </body>
 </html>

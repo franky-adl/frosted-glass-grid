@@ -12,13 +12,16 @@ export default class Stage {
 
         this.params = {
             ground: "spot",
+            overlay: true,
         };
 
+        this.overlay = document.querySelector(".overlay");
         this.setBackground();
         this.planeGrid = new PlaneGrid();
         this.spotPlane = new SpotPlane(this.planeGrid);
         this.imagePlane = new ImagePlane(this.planeGrid);
         this.setGround(this.params.ground);
+        this.setOverlay(this.params.overlay);
         this.setDebug();
     }
 
@@ -30,6 +33,11 @@ export default class Stage {
     setGround(type) {
         this.spotPlane.mesh.visible = type === "spot";
         this.imagePlane.mesh.visible = type === "image";
+    }
+
+    setOverlay(visible) {
+        if (!this.overlay) return;
+        this.overlay.style.display = visible ? "" : "none";
     }
 
     setDebug() {
@@ -46,6 +54,9 @@ export default class Stage {
             .onChange((value) => {
                 this.setGround(value);
             });
+        this.debugFolder.add(this.params, "overlay").onChange((value) => {
+            this.setOverlay(value);
+        });
     }
 
     // both time params are measured in seconds

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import Orchestrator from "../Orchestrator.js";
+import GaussianBlur from "./GaussianBlur.js";
 import vertexShader from "./shaders/planeGrid/vertex.glsl";
 import fragmentShader from "./shaders/planeGrid/fragment.glsl";
 
@@ -19,7 +20,15 @@ export default class PlaneGrid {
             cornerRoundness: 0.15,
             ior: 1.45,
             thickness: 1,
+            jitter: 0.15,
             chromaticAberration: 0.1,
+            blurSigma: 3,
+            blurRadius: 9,
+            rimWidth: 0.2,
+            normalStrength: 1.6,
+            sdfSmooth: 0.15,
+            highlightWidth: 0.05,
+            showNormals: false,
         };
 
         this.dummy = new THREE.Object3D();
@@ -27,6 +36,7 @@ export default class PlaneGrid {
         this.drawingBufferSize = new THREE.Vector2();
 
         this.setGrabTarget();
+        this.setBlur();
         this.setMaterial();
         this.rebuild();
         this.setDebug();
@@ -45,6 +55,10 @@ export default class PlaneGrid {
         this.grabTarget.texture.colorSpace = THREE.NoColorSpace;
     }
 
+    setBlur() {
+        this.gaussianBlur = new GaussianBlur(this.renderer);
+    }
+
     setMaterial() {
         this.material = new THREE.ShaderMaterial({
             uniforms: {
@@ -52,10 +66,17 @@ export default class PlaneGrid {
                 uViewProjection: { value: this.viewProjection },
                 uIor: { value: this.params.ior },
                 uThickness: { value: this.params.thickness },
+                uJitterRange: { value: this.params.jitter },
                 uChromaticAberration: {
                     value: this.params.chromaticAberration,
                 },
                 uPlaneSize: { value: this.params.planeSize },
+                uCornerRadius: { value: this.params.cornerRoundness },
+                uRimWidth: { value: this.params.rimWidth },
+                uNormalStrength: { value: this.params.normalStrength },
+                uSdfSmooth: { value: this.params.sdfSmooth },
+                uHighlightWidth: { value: this.params.highlightWidth },
+                uShowNormals: { value: 0 },
             },
             vertexShader,
             fragmentShader,
@@ -116,6 +137,21 @@ export default class PlaneGrid {
         this.mesh.computeBoundingSphere();
     }
 
+    ensureJitter(instanceCount) {
+        const componentCount = instanceCount * 2;
+
+        if (this.jitterData && this.jitterData.length === componentCount) {
+            return;
+        }
+
+        this.jitterData = new Float32Array(componentCount);
+
+        for (let i = 0; i < instanceCount; i++) {
+            this.jitterData[i * 2] = Math.random() * 2 - 1;
+            this.jitterData[i * 2 + 1] = Math.random() * 2 - 1;
+        }
+    }
+
     getSize() {
         const { columns, rows, planeSize, gap } = this.params;
 
@@ -131,6 +167,12 @@ export default class PlaneGrid {
             this.params.cornerRoundness,
         );
         const instanceCount = this.params.columns * this.params.rows;
+
+        this.ensureJitter(instanceCount);
+        geometry.setAttribute(
+            "aJitter",
+            new THREE.InstancedBufferAttribute(this.jitterData.slice(), 2),
+        );
 
         if (this.mesh) {
             this.scene.remove(this.mesh);
@@ -212,12 +254,61 @@ export default class PlaneGrid {
 
         this.debugFolder.add(this.params, "thickness").min(0).max(2).step(0.01);
 
+        this.debugFolder.add(this.params, "jitter").min(0).max(1).step(0.01);
+
         this.debugFolder
             .add(this.params, "chromaticAberration")
             .name("chroma")
             .min(0)
             .max(0.2)
             .step(0.001);
+
+        this.debugFolder
+            .add(this.params, "blurSigma")
+            .name("blur σ")
+            .min(0)
+            .max(16)
+            .step(0.1)
+            .onChange(() => {
+                this.syncBlurRadius();
+            });
+
+        this.blurRadiusController = this.debugFolder
+            .add(this.params, "blurRadius")
+            .name("blur radius")
+            .min(0)
+            .max(32)
+            .step(1);
+
+        this.debugFolder
+            .add(this.params, "rimWidth")
+            .name("rim")
+            .min(0.001)
+            .max(0.8)
+            .step(0.001);
+
+        this.debugFolder
+            .add(this.params, "normalStrength")
+            .name("rimStrength")
+            .min(0)
+            .max(4)
+            .step(0.01);
+
+        this.debugFolder
+            .add(this.params, "sdfSmooth")
+            .name("rimSmooth")
+            .min(0)
+            .max(0.4)
+            .step(0.001);
+
+        this.debugFolder
+            .add(this.params, "highlightWidth")
+            .name("highlight")
+            .min(0)
+            .max(0.3)
+            .step(0.001);
+
+        this.debugFolder.add(this.params, "showNormals").name("showNormals");
     }
 
     syncRoundnessMax() {
@@ -232,12 +323,36 @@ export default class PlaneGrid {
         }
     }
 
+    syncBlurRadius() {
+        const recommended = Math.min(
+            32,
+            Math.max(0, Math.ceil(this.params.blurSigma * 3)),
+        );
+
+        if (this.params.blurRadius < recommended) {
+            this.params.blurRadius = recommended;
+            this.blurRadiusController?.updateDisplay();
+        }
+    }
+
     syncUniforms() {
         this.material.uniforms.uIor.value = this.params.ior;
         this.material.uniforms.uThickness.value = this.params.thickness;
+        this.material.uniforms.uJitterRange.value = this.params.jitter;
         this.material.uniforms.uChromaticAberration.value =
             this.params.chromaticAberration;
         this.material.uniforms.uPlaneSize.value = this.params.planeSize;
+        this.material.uniforms.uCornerRadius.value =
+            this.params.cornerRoundness;
+        this.material.uniforms.uRimWidth.value = this.params.rimWidth;
+        this.material.uniforms.uNormalStrength.value =
+            this.params.normalStrength;
+        this.material.uniforms.uSdfSmooth.value = this.params.sdfSmooth;
+        this.material.uniforms.uHighlightWidth.value =
+            this.params.highlightWidth;
+        this.material.uniforms.uShowNormals.value = this.params.showNormals
+            ? 1
+            : 0;
 
         this.camera.updateMatrixWorld();
         this.viewProjection.multiplyMatrices(
@@ -258,6 +373,8 @@ export default class PlaneGrid {
         ) {
             this.grabTarget.setSize(width, height);
         }
+
+        this.gaussianBlur.setSize(width, height);
     }
 
     renderGrabPass() {
@@ -270,6 +387,12 @@ export default class PlaneGrid {
         this.renderer.render(this.scene, this.camera);
         this.renderer.setRenderTarget(currentTarget);
         this.mesh.visible = true;
+
+        this.material.uniforms.uGrabTexture.value = this.gaussianBlur.apply(
+            this.grabTarget.texture,
+            this.params.blurSigma,
+            this.params.blurRadius,
+        );
     }
 
     update() {

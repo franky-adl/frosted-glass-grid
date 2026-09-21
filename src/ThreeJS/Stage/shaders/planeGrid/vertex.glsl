@@ -1,8 +1,12 @@
+attribute vec2 aJitter;
+
 varying vec3 vWorldPosition;
 varying vec3 vLocalPosition;
+varying vec2 vJitter;
 
 void main() {
     vLocalPosition = position;
+    vJitter = aJitter;
 
     vec3 transformed = position;
 

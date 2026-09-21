@@ -34,5 +34,6 @@ export default class Stage {
     // both time params are measured in seconds
     update(elapsed, delta) {
         this.spotPlane.update(elapsed, delta);
+        this.planeGrid.update();
     }
 }

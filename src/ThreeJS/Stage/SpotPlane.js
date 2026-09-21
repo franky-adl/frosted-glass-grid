@@ -13,11 +13,12 @@ export default class SpotPlane {
         this.planeGrid = planeGrid;
 
         this.params = {
-            radius: 5,
+            radius: 6,
             damping: 6,
             yOffset: -0.05,
         };
 
+        this.baseColor = new THREE.Color("#f5f5f5");
         this.color = new THREE.Color("#4f8cff");
         this.pointer = new THREE.Vector2();
         this.spotTarget = new THREE.Vector2();
@@ -36,14 +37,13 @@ export default class SpotPlane {
     setMaterial() {
         this.material = new THREE.ShaderMaterial({
             uniforms: {
+                uBaseColor: { value: this.baseColor },
                 uColor: { value: this.color },
                 uSpotPosition: { value: this.spotPosition },
                 uRadius: { value: this.params.radius },
             },
             vertexShader,
             fragmentShader,
-            transparent: true,
-            depthWrite: false,
             toneMapped: false,
         });
     }
@@ -83,6 +83,7 @@ export default class SpotPlane {
 
         this.debugFolder.add(this.params, "radius").min(0.1).max(24).step(0.1);
 
+        this.debug.addColor(this.debugFolder, this.baseColor, "baseColor");
         this.debug.addColor(this.debugFolder, this.color, "color");
 
         this.debugFolder.add(this.params, "damping").min(0.5).max(20).step(0.1);

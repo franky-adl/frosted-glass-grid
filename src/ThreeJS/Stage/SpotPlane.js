@@ -20,8 +20,8 @@ export default class SpotPlane {
         };
 
         this.baseColor = new THREE.Color("#f5f2ea");
-        this.color = new THREE.Color("#ee00ff");
-        this.color2 = new THREE.Color("#e50654");
+        this.color = new THREE.Color("#1100ff");
+        this.color2 = new THREE.Color("#9e06e5");
         this.pointer = new THREE.Vector2();
         this.spotTarget = new THREE.Vector2();
         this.spotPosition = new THREE.Vector2();

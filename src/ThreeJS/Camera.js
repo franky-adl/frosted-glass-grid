@@ -1,19 +1,16 @@
 import * as THREE from "three";
 import Orchestrator from "./Orchestrator.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 export default class Camera {
     constructor() {
         this.orc = new Orchestrator();
         this.sizes = this.orc.sizes;
         this.scene = this.orc.scene;
-        this.canvas = this.orc.canvas;
 
         // Vertical world-space height of the orthographic view
         this.frustumSize = 12;
 
         this.setInstance();
-        this.setControls();
     }
 
     setInstance() {
@@ -34,15 +31,6 @@ export default class Camera {
         this.scene.add(this.instance);
     }
 
-    setControls() {
-        this.controls = new OrbitControls(this.instance, this.canvas);
-        this.controls.enableDamping = true;
-        this.controls.enableRotate = false;
-        this.controls.screenSpacePanning = true;
-        this.controls.target.set(0, 0, 0);
-        this.controls.update();
-    }
-
     resize() {
         const aspect = this.sizes.width / this.sizes.height;
 
@@ -53,7 +41,5 @@ export default class Camera {
         this.instance.updateProjectionMatrix();
     }
 
-    update() {
-        this.controls.update();
-    }
+    update() {}
 }

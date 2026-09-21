@@ -109,7 +109,6 @@ export default class Orchestrator {
             }
         });
 
-        this.camera.controls.dispose();
         this.renderer.instance.dispose();
 
         if (this.debug.active) {

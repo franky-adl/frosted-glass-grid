@@ -14,13 +14,14 @@ export default class SpotPlane {
 
         this.params = {
             radius: 6,
+            falloffOffset: 1.2,
             damping: 6,
             yOffset: -0.05,
         };
 
-        this.baseColor = new THREE.Color("#ffe5f0");
-        this.color = new THREE.Color("#244ef5");
-        this.color2 = new THREE.Color("#f50a93");
+        this.baseColor = new THREE.Color("#f5f2ea");
+        this.color = new THREE.Color("#ee00ff");
+        this.color2 = new THREE.Color("#e50654");
         this.pointer = new THREE.Vector2();
         this.spotTarget = new THREE.Vector2();
         this.spotPosition = new THREE.Vector2();
@@ -43,6 +44,7 @@ export default class SpotPlane {
                 uColor2: { value: this.color2 },
                 uSpotPosition: { value: this.spotPosition },
                 uRadius: { value: this.params.radius },
+                uFalloffOffset: { value: this.params.falloffOffset },
             },
             vertexShader,
             fragmentShader,
@@ -84,6 +86,11 @@ export default class SpotPlane {
         this.debugFolder = this.debug.ui.addFolder("spot");
 
         this.debugFolder.add(this.params, "radius").min(0.1).max(24).step(0.1);
+        this.debugFolder
+            .add(this.params, "falloffOffset")
+            .min(0)
+            .max(24)
+            .step(0.1);
 
         this.debug.addColor(this.debugFolder, this.baseColor, "baseColor");
         this.debug.addColor(this.debugFolder, this.color, "color");
@@ -118,6 +125,7 @@ export default class SpotPlane {
         );
 
         this.material.uniforms.uRadius.value = this.params.radius;
+        this.material.uniforms.uFalloffOffset.value = this.params.falloffOffset;
     }
 
     update(elapsed, delta) {

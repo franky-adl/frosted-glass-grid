@@ -1,14 +1,21 @@
 uniform sampler2D uGrabTexture;
+uniform sampler2D uBlueNoise;
+uniform vec2 uBlueNoiseTexel;
+uniform vec2 uTexelSize;
+uniform float uGrainAmount;
+uniform float uGrainScale;
 uniform mat4 uViewProjection;
 uniform float uIor;
 uniform float uThickness;
 uniform float uJitterRange;
+uniform float uJitterOffset;
 uniform float uChromaticAberration;
 uniform float uPlaneSize;
 uniform float uCornerRadius;
 uniform float uRimWidth;
 uniform float uNormalStrength;
 uniform float uTroughDepth;
+uniform float uTroughSquareness;
 uniform float uSdfSmooth;
 uniform float uHighlightWidth;
 uniform float uShowNormals;
@@ -61,14 +68,28 @@ float heightFromDist(float dist) {
     return rim * cos(theta);
 }
 
-// C2 separable bowl: 0 (and flat) at the tile edge, 1 at the center.
-// Polynomial in n² so the well is elliptic near the origin — no SDF ridges.
+// Mix of the original separable (circular) bowl and a superellipse well.
+// 0 = previous circular trough, 1 = squarish trough from the four edges.
 float troughProfile(vec2 p, vec2 innerHalf) {
-    vec2 n = p / innerHalf;
-    vec2 w = max(1.0 - n * n, 0.0);
-    vec2 w3 = w * w * w;
+    vec2 n2 = p / innerHalf;
+    n2 *= n2;
 
-    return w3.x * w3.y;
+    vec2 wEdge = max(1.0 - n2, 0.0);
+    vec2 w3 = wEdge * wEdge * wEdge;
+    float circular = w3.x * w3.y;
+
+    float squareness = clamp(uTroughSquareness, 0.0, 1.0);
+    if (squareness <= 0.0) {
+        return circular;
+    }
+
+    float e = 8.0;
+    float sum = pow(n2.x, e * 0.5) + pow(n2.y, e * 0.5);
+    float r2 = sum > 0.0 ? pow(sum, 2.0 / e) : 0.0;
+    float w = max(1.0 - r2, 0.0);
+    float square = w * w * w;
+
+    return mix(circular, square, squareness);
 }
 
 float glassHeight(vec2 p, vec2 halfSize, float radius, float smoothK) {
@@ -129,12 +150,20 @@ vec2 getGrabUv(float ior, float thickness, vec3 incident, vec3 normal) {
 }
 
 vec3 sampleGrab(vec2 uv) {
-    return texture2D(uGrabTexture, uv).rgb;
+    vec2 offset = vec2(0.0);
+
+    if (uGrainAmount > 1e-5) {
+        vec2 noiseUv = gl_FragCoord.xy * uBlueNoiseTexel / max(uGrainScale, 1e-5);
+        vec2 noise = texture2D(uBlueNoise, noiseUv).rg;
+        offset = (noise * 2.0 - 1.0) * uGrainAmount * uTexelSize;
+    }
+
+    return texture2D(uGrabTexture, uv + offset).rgb;
 }
 
 void main() {
-    float ior = uIor * max(1.0 + vJitter.x * uJitterRange, 0.01);
-    float thickness = uThickness * max(1.0 + vJitter.y * uJitterRange, 0.0);
+    float ior = uIor * max(1.0 + (vJitter.x + uJitterOffset) * uJitterRange, 0.01);
+    float thickness = uThickness * max(1.0 + (vJitter.y + uJitterOffset) * uJitterRange, 0.0);
 
     vec2 p = vLocalPosition.xz;
     vec2 halfSize = vec2(uPlaneSize * 0.5);

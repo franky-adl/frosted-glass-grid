@@ -3,6 +3,7 @@ uniform vec3 uColor;
 uniform vec3 uColor2;
 uniform vec2 uSpotPosition;
 uniform float uRadius;
+uniform float uFalloffOffset;
 
 varying vec3 vWorldPosition;
 
@@ -11,7 +12,12 @@ void main() {
     float xDist = vWorldPosition.x - uSpotPosition.x;
     float xD_ratio = xDist / uRadius;
     vec3 mixedColor = mix(uColor, uColor2, smoothstep(-1., 1., xD_ratio));
-    float falloff = 1.0 - clamp(dist / max(uRadius, 1e-5), 0.0, 1.0);
+    float inner = min(uFalloffOffset, uRadius);
+    float falloff = 1.0 - clamp(
+        (dist - inner) / max(uRadius - inner, 1e-5),
+        0.0,
+        1.0
+    );
 
     vec3 color = mix(uBaseColor, mixedColor, falloff);
     gl_FragColor = vec4(color, 1.0);

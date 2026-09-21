@@ -11,6 +11,7 @@ uniform float uNormalStrength;
 uniform float uSdfSmooth;
 uniform float uHighlightWidth;
 uniform float uShowNormals;
+uniform float uTonemapStrength;
 
 varying vec3 vWorldPosition;
 varying vec3 vLocalPosition;
@@ -169,6 +170,8 @@ void main() {
         float directional = clamp(normal.x * normal.z * 0.5 + 0.5, 0.0, 1.0);
         color += vec3(edge * directional * fresnel);
     }
+
+    color /= 1.0 + color * uTonemapStrength;
 
     gl_FragColor = vec4(color, 1.0);
     gl_FragColor = linearToOutputTexel(gl_FragColor);

@@ -29,6 +29,7 @@ export default class PlaneGrid {
             sdfSmooth: 0.15,
             highlightWidth: 0.05,
             showNormals: false,
+            tonemapStrength: 0.07,
         };
 
         this.dummy = new THREE.Object3D();
@@ -77,6 +78,7 @@ export default class PlaneGrid {
                 uSdfSmooth: { value: this.params.sdfSmooth },
                 uHighlightWidth: { value: this.params.highlightWidth },
                 uShowNormals: { value: 0 },
+                uTonemapStrength: { value: this.params.tonemapStrength },
             },
             vertexShader,
             fragmentShader,
@@ -309,6 +311,13 @@ export default class PlaneGrid {
             .step(0.001);
 
         this.debugFolder.add(this.params, "showNormals").name("showNormals");
+
+        this.debugFolder
+            .add(this.params, "tonemapStrength")
+            .name("tonemap")
+            .min(0)
+            .max(4)
+            .step(0.01);
     }
 
     syncRoundnessMax() {
@@ -353,6 +362,8 @@ export default class PlaneGrid {
         this.material.uniforms.uShowNormals.value = this.params.showNormals
             ? 1
             : 0;
+        this.material.uniforms.uTonemapStrength.value =
+            this.params.tonemapStrength;
 
         this.camera.updateMatrixWorld();
         this.viewProjection.multiplyMatrices(

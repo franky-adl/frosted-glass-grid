@@ -18,8 +18,9 @@ export default class SpotPlane {
             yOffset: -0.05,
         };
 
-        this.baseColor = new THREE.Color("#f5f5f5");
-        this.color = new THREE.Color("#4f8cff");
+        this.baseColor = new THREE.Color("#ffe5f0");
+        this.color = new THREE.Color("#244ef5");
+        this.color2 = new THREE.Color("#f50a93");
         this.pointer = new THREE.Vector2();
         this.spotTarget = new THREE.Vector2();
         this.spotPosition = new THREE.Vector2();
@@ -39,6 +40,7 @@ export default class SpotPlane {
             uniforms: {
                 uBaseColor: { value: this.baseColor },
                 uColor: { value: this.color },
+                uColor2: { value: this.color2 },
                 uSpotPosition: { value: this.spotPosition },
                 uRadius: { value: this.params.radius },
             },
@@ -85,6 +87,7 @@ export default class SpotPlane {
 
         this.debug.addColor(this.debugFolder, this.baseColor, "baseColor");
         this.debug.addColor(this.debugFolder, this.color, "color");
+        this.debug.addColor(this.debugFolder, this.color2, "color2");
 
         this.debugFolder.add(this.params, "damping").min(0.5).max(20).step(0.1);
     }

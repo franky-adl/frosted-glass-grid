@@ -26,6 +26,7 @@ export default class PlaneGrid {
             blurRadius: 9,
             rimWidth: 0.2,
             normalStrength: 1.6,
+            troughDepth: 0.12,
             sdfSmooth: 0.15,
             highlightWidth: 0.05,
             showNormals: false,
@@ -75,6 +76,7 @@ export default class PlaneGrid {
                 uCornerRadius: { value: this.params.cornerRoundness },
                 uRimWidth: { value: this.params.rimWidth },
                 uNormalStrength: { value: this.params.normalStrength },
+                uTroughDepth: { value: this.params.troughDepth },
                 uSdfSmooth: { value: this.params.sdfSmooth },
                 uHighlightWidth: { value: this.params.highlightWidth },
                 uShowNormals: { value: 0 },
@@ -297,6 +299,13 @@ export default class PlaneGrid {
             .step(0.01);
 
         this.debugFolder
+            .add(this.params, "troughDepth")
+            .name("trough")
+            .min(0)
+            .max(2)
+            .step(0.01);
+
+        this.debugFolder
             .add(this.params, "sdfSmooth")
             .name("rimSmooth")
             .min(0)
@@ -356,6 +365,7 @@ export default class PlaneGrid {
         this.material.uniforms.uRimWidth.value = this.params.rimWidth;
         this.material.uniforms.uNormalStrength.value =
             this.params.normalStrength;
+        this.material.uniforms.uTroughDepth.value = this.params.troughDepth;
         this.material.uniforms.uSdfSmooth.value = this.params.sdfSmooth;
         this.material.uniforms.uHighlightWidth.value =
             this.params.highlightWidth;

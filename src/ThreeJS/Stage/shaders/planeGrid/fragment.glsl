@@ -8,6 +8,7 @@ uniform float uPlaneSize;
 uniform float uCornerRadius;
 uniform float uRimWidth;
 uniform float uNormalStrength;
+uniform float uTroughDepth;
 uniform float uSdfSmooth;
 uniform float uHighlightWidth;
 uniform float uShowNormals;
@@ -55,13 +56,26 @@ float sdRoundedBoxSmooth(vec2 p, vec2 b, float r, float k) {
 float heightFromDist(float dist) {
     float rim = max(uRimWidth, 1e-5);
     float t = clamp(-dist / rim, 0.0, 1.0);
-    // Circular roundover of ~70°, C1 with the flat interior, finite slope at the lip.
+    // Circular roundover of ~70°, C1 with the interior, finite slope at the lip.
     float theta = (1.0 - t) * 1.2217;
     return rim * cos(theta);
 }
 
+// C2 separable bowl: 0 (and flat) at the tile edge, 1 at the center.
+// Polynomial in n² so the well is elliptic near the origin — no SDF ridges.
+float troughProfile(vec2 p, vec2 innerHalf) {
+    vec2 n = p / innerHalf;
+    vec2 w = max(1.0 - n * n, 0.0);
+    vec2 w3 = w * w * w;
+
+    return w3.x * w3.y;
+}
+
 float glassHeight(vec2 p, vec2 halfSize, float radius, float smoothK) {
-    return heightFromDist(sdRoundedBoxSmooth(p, halfSize, radius, smoothK));
+    float meniscus = heightFromDist(sdRoundedBoxSmooth(p, halfSize, radius, smoothK));
+    vec2 innerHalf = max(halfSize, vec2(1e-4));
+
+    return meniscus - uTroughDepth * troughProfile(p, innerHalf);
 }
 
 vec3 getIncident() {
@@ -72,17 +86,7 @@ vec3 getIncident() {
     return normalize(vWorldPosition - cameraPosition);
 }
 
-vec3 getLensNormal(float thickness) {
-    float curvature = thickness / max(uPlaneSize, 1e-4);
-
-    return normalize(vec3(
-        vLocalPosition.x * curvature * 2.0,
-        1.0,
-        vLocalPosition.z * curvature * 2.0
-    ));
-}
-
-vec3 getRimNormal(vec2 p, vec2 halfSize, float radius, float smoothK) {
+vec3 getSurfaceNormal(vec2 p, vec2 halfSize, float radius, float smoothK) {
     float eps = max(uRimWidth * 0.04, uPlaneSize * 0.002);
     float eps2 = eps * 2.0;
 
@@ -139,10 +143,7 @@ void main() {
 
     vec3 incident = getIncident();
     vec3 viewDir = -incident;
-    vec3 lensNormal = getLensNormal(thickness);
-    vec3 rimNormal = getRimNormal(p, halfSize, radius, uSdfSmooth);
-    float interior = clamp(-dist / max(uRimWidth, 1e-5), 0.0, 1.0);
-    vec3 normal = normalize(mix(rimNormal, lensNormal, interior));
+    vec3 normal = getSurfaceNormal(p, halfSize, radius, uSdfSmooth);
 
     if (uShowNormals > 0.5) {
         gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);

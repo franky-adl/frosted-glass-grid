@@ -10,6 +10,7 @@ export default class PlaneGrid {
         this.scene = this.orc.scene;
         this.camera = this.orc.camera.instance;
         this.renderer = this.orc.renderer.instance;
+        this.sizes = this.orc.sizes;
         this.debug = this.orc.debug;
 
         this.params = {
@@ -84,8 +85,12 @@ export default class PlaneGrid {
                     ),
                 },
                 uTexelSize: { value: this.texelSize },
-                uGrainAmount: { value: this.params.grainAmount },
-                uGrainScale: { value: this.params.grainScale },
+                uGrainAmount: {
+                    value: this.params.grainAmount * this.getGrainFactor(),
+                },
+                uGrainScale: {
+                    value: this.params.grainScale * this.getGrainFactor(),
+                },
                 uPlaneSize: { value: this.params.planeSize },
                 uCornerRadius: { value: this.params.cornerRoundness },
                 uRimWidth: { value: this.params.rimWidth },
@@ -366,15 +371,23 @@ export default class PlaneGrid {
         }
     }
 
+    getGrainFactor() {
+        return this.sizes.pixelRatio <= 1 ? 0.5 : 1;
+    }
+
     syncUniforms() {
+        const grainFactor = this.getGrainFactor();
+
         this.material.uniforms.uIor.value = this.params.ior;
         this.material.uniforms.uThickness.value = this.params.thickness;
         this.material.uniforms.uJitterRange.value = this.params.jitter;
         this.material.uniforms.uJitterOffset.value = this.params.jitterOffset;
         this.material.uniforms.uChromaticAberration.value =
             this.params.chromaticAberration;
-        this.material.uniforms.uGrainAmount.value = this.params.grainAmount;
-        this.material.uniforms.uGrainScale.value = this.params.grainScale;
+        this.material.uniforms.uGrainAmount.value =
+            this.params.grainAmount * grainFactor;
+        this.material.uniforms.uGrainScale.value =
+            this.params.grainScale * grainFactor;
         this.material.uniforms.uPlaneSize.value = this.params.planeSize;
         this.material.uniforms.uCornerRadius.value =
             this.params.cornerRoundness;

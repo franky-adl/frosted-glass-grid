@@ -5,7 +5,7 @@ export default class Sizes {
         this.orc = new Orchestrator();
         this.emitter = this.orc.emitter;
         // Consider capping at 1.5 for performance reasons
-        this.maxPixelRatio = 2;
+        this.maxPixelRatio = 1.5;
 
         // Setup
         this.width = window.innerWidth;

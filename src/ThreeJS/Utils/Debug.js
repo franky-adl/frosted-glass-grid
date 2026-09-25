@@ -3,10 +3,7 @@ import GUI from "lil-gui";
 
 export default class Debug {
     constructor() {
-        this.active =
-            window.location.hash === "#debug" ||
-            window.location.hostname === "localhost" ||
-            window.location.hostname === "127.0.0.1";
+        this.active = window.location.hash === "#debug";
 
         if (this.active) {
             this.ui = new GUI();

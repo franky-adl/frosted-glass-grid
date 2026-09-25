@@ -2,7 +2,7 @@
 
 A Three.js scene of instanced frosted-glass tiles sitting just above a ground plane. Each tile is a flat mesh, but the fragment shader treats it as a thin slab of glass: a rounded rim, a shallow trough in the center, refraction of whatever is underneath, chromatic aberration, and a blue-noise grain that breaks up sampling artifacts.
 
-The ground is one of two interchangeable backdrops — a mouse-following color spot, or a landscape photograph. A grab pass captures that backdrop (without the tiles) every frame so the glass can sample it as if looking through a lens.
+The ground is one of several interchangeable backdrops: a mouse-following color spot, drifting aurora ribbons, lava metaballs, or wavy color bands. A grab pass captures the visible backdrop (without the tiles) every frame so the glass can sample it as if looking through a lens.
 
 ## Setup
 
@@ -29,18 +29,18 @@ The lil-gui panel and GPU stats overlay are enabled automatically on localhost, 
 `src/script.js` creates a single `Orchestrator` and hands it the WebGL canvas. From there the lifetime of the app is:
 
 1. **Orchestrator** builds shared services (debug, sizes, resources, camera, renderer) and then the **Stage**.
-2. **Stage** creates the three visible pieces: **PlaneGrid** (the glass), **SpotPlane** (default ground), and **ImagePlane** (optional photo ground).
-3. Each animation frame, Stage updates the ground and then PlaneGrid. PlaneGrid hides itself, renders the rest of the scene into a grab texture, then becomes visible again. The renderer’s final pass draws everything, and the glass shader samples that grab texture.
+2. **Stage** creates **PlaneGrid** (the glass) and the backdrops: **SpotPlane** (default), **AuroraPlane**, **LavaPlane**, and **BandsPlane**. Only one backdrop mesh is visible at a time.
+3. Each animation frame, Stage updates every backdrop, then PlaneGrid. The hidden ones still run, because aurora and lava read the spot’s pointer. PlaneGrid hides itself, renders the rest of the scene into a grab texture, then becomes visible again. The renderer’s final pass draws everything, and the glass shader samples that grab texture.
 
-Render order is important: both ground meshes use `renderOrder = -1`, the glass uses `renderOrder = 1`. That keeps the tiles on top even though they sit at almost the same Y as the ground.
+Render order is important: every ground mesh uses `renderOrder = -1`, the glass uses `renderOrder = 1`. That keeps the tiles on top even though they sit at almost the same Y as the ground.
 
 ```
                     ┌─────────────┐
                     │  Camera     │  orthographic, looking straight down
                     └──────┬──────┘
                            │
-   pointer ──► SpotPlane   │   ImagePlane
-               (spot ground)   (photo ground)
+         spot · aurora · lava · bands
+              (one ground visible)
                            │
                     grab pass (tiles hidden)
                            │
@@ -81,7 +81,7 @@ The vertical frustum height is a fixed `frustumSize` of 12 world units. On resiz
 
 ## Renderer
 
-`src/ThreeJS/Renderer.js` wraps `THREE.WebGLRenderer` with antialiasing, a dark clear color, and pixel-ratio capped by `Sizes` (max 2). Tone mapping and shadows are present but commented out; the glass and spot shaders set `toneMapped: false` and convert to output color space themselves via `linearToOutputTexel`.
+`src/ThreeJS/Renderer.js` wraps `THREE.WebGLRenderer` with antialiasing, a dark clear color, and pixel-ratio capped by `Sizes` (max 2). Tone mapping and shadows are present but commented out; the glass and ground shaders set `toneMapped: false` and convert to output color space themselves via `linearToOutputTexel`.
 
 Post-processing (`EffectComposer` + `RenderPass` + `OutputPass`) is wired but gated by `usePostProcessing = false`. The live path is a single `renderer.render(scene, camera)` after Stage has already filled the grab target.
 
@@ -94,12 +94,14 @@ Post-processing (`EffectComposer` + `RenderPass` + `OutputPass`) is wired but ga
 It sets the scene background to `#f5f5f5`, then constructs:
 
 1. `PlaneGrid` — the frosted tiles
-2. `SpotPlane(planeGrid)` — color-spot ground, sized to the grid
-3. `ImagePlane(planeGrid)` — photo ground, also sized to the grid
+2. `SpotPlane` — color-spot ground, sized to the grid, and the shared pointer
+3. `AuroraPlane`, `LavaPlane`, and `BandsPlane` — the other backdrops, also sized to the grid
 
-`setGround(type)` toggles mesh visibility. Default is `"spot"`. The debug “scene” folder lets you switch to `"image"` and change the background color.
+`ImagePlane` (a photo of `/textures/landscape.jpg`) is still constructed, but it is commented out of `grounds`, so it is not part of the switcher.
 
-Update order each frame: spot (pointer + damping) → image (cover/transform) → plane grid (uniforms + grab pass). Ground must be up to date _before_ the grab pass, otherwise the glass would refract a stale backdrop.
+`setGround(type)` walks `grounds` and shows only the matching mesh. It also shows that ground’s lil-gui folder and hides the others. Default is `"spot"`. The debug “scene” folder lists the keys of `grounds` — currently `spot`, `aurora`, `lava`, and `bands` — plus the background color and an HTML overlay toggle.
+
+Update order each frame: every ground, then the plane grid. Spot runs first, which matters because lava reads its damped spot position. Aurora reads the same pointer in NDC and shifts its ribbons by a per-band sensitivity. Ground must be up to date _before_ the grab pass, otherwise the glass would refract a stale backdrop. Hidden grounds still update, so switching back does not resume from a frozen frame.
 
 ---
 
@@ -116,7 +118,7 @@ step = planeSize + gap
 offsetX = (columns - 1) * step / 2   // same idea for Z / rows
 ```
 
-`getSize()` returns the outer width/height of that grid. SpotPlane and ImagePlane scale themselves to those dimensions so the ground always sits flush under the tiles, including when you change width/height/size/gap in the GUI.
+`getSize()` returns the outer width/height of that grid. Every ground scales itself to those dimensions so the backdrop always sits flush under the tiles, including when you change width/height/size/gap in the GUI.
 
 Changing columns, rows, plane size, or corner roundness calls `rebuild()`, which disposes the old mesh and creates a new `InstancedMesh`. Changing only the gap calls `updateInstances()`, which rewrites instance matrices without reallocating geometry.
 
@@ -242,22 +244,47 @@ On `pointermove`, NDC is stored. Each frame a raycaster from the camera hits an 
 
 - Inside `falloffOffset`, the mix is 1 (full accent).
 - Between `falloffOffset` and `radius`, it lerps to `uBaseColor`.
-- The accent itself is `mix(uColor, uColor2, smoothstep(-1, 1, (world.x - spot.x) / radius))`, so the blob is a horizontal gradient (magenta → pink by default) rather than a single hue.
+- The accent itself is `mix(uColor, uColor2, smoothstep(-1, 1, (world.x - spot.x) / radius))`, so the blob is a horizontal gradient (blue → purple by default) rather than a single hue.
 
 `toneMapped: false` plus `linearToOutputTexel` matches the glass output path so the grab sample and the on-screen ground agree.
 
 ---
 
+## AuroraPlane
+
+`src/ThreeJS/Stage/AuroraPlane.js` draws three colored ribbons on a paper-colored base. The mesh is the same scaled XZ plane as the spot, sunk by `yOffset` (−0.05), with `renderOrder = -1`, and it starts hidden.
+
+Each band has its own angle, XZ offset, thickness, edge softness, wave phase, color, and pointer sensitivity. A shared set of three sines bends the ribbon along its length: the shader projects the world point onto the band’s axis, sums `amplitude * sin(frequency * (along - time * speed) + phase)`, then masks by distance across the band. Soft edges use `smoothstep` around the half-width; a zero edge is a hard cut.
+
+The pointer comes from SpotPlane’s NDC, scaled into the orthographic frustum (`pointer * camera.right/top`). Each band adds `screenOffset * sensitivity` to its offset, so a sensitivity of 0 stays put and a higher value lets that ribbon follow the cursor.
+
+---
+
+## LavaPlane
+
+`src/ThreeJS/Stage/LavaPlane.js` is a field of seven metaballs. Positions are `sin` paths inside the camera view (`travel` scales how far they roam), not the grid, which extends past the screen. Radius, frequency, and phase are seeded once with a Mulberry32 PRNG (seed 7) so the layout is the same on every reload. Colors cycle through `colorA`, `colorB`, and `colorC`.
+
+The fragment shader smooth-mins the distance to each blob (`smin`, polynomial k = `smoothness`). Blob color is an inverse-square weighted mix of the nearby centers, slightly darkened toward the interior. `edgeSoftness` feathers the field into `baseColor`.
+
+If `pointerEnabled` is on, the damped SpotPlane position is an extra blob of `pointerRadius`, colored with `colorA`. Setting the radius uniform to 0 removes it.
+
+---
+
+## BandsPlane
+
+`src/ThreeJS/Stage/BandsPlane.js` fills the ground with six stripes of a four-color palette (`colorA` through `colorD`, then the cycle repeats). The stripes run along a shared angle. Three sines, at falling amplitudes (1, 0.5, 0.25), bend the boundaries. Each wave has its own time accumulator, so changing a speed slider only affects the future rate and does not jump the pattern.
+
+Thickness is a base value times a per-band seed from another Mulberry32 sequence (seed 11). `thicknessVariance` is how far those seeds may pull each stripe. The shader wraps the along-axis coordinate by the total thickness, finds which band contains the point, and blends into the previous and next palette colors across `edgeSoftness`.
+
+Bands do not read the pointer.
+
+---
+
 ## ImagePlane
 
-`src/ThreeJS/Stage/ImagePlane.js` is the alternate ground: the same scaled XZ plane, initially hidden, with a `MeshBasicMaterial` whose map is `/textures/landscape.jpg`.
+`src/ThreeJS/Stage/ImagePlane.js` is a photo ground that is not currently selectable. Stage still constructs it, but the `image` entry in `grounds` is commented out, so `setGround` never shows it and it has no debug folder.
 
-`Resources` loads that texture asynchronously. If it is not ready in the constructor, ImagePlane waits for the orchestrator `"ready"` event. Once applied, `syncCover()` implements CSS-style `object-fit: cover`:
-
-- Compare the plane aspect to the image aspect.
-- Repeat/offset the texture so the image fills the plane and the overflow is cropped, centered.
-
-`syncTransform()` runs every frame so cover and scale stay correct when the grid’s columns, rows, size, or gap change.
+When it is wired back in, it is the same scaled XZ plane with a `MeshBasicMaterial` mapped to `/textures/landscape.jpg`. `Resources` loads that texture asynchronously; if it is not ready in the constructor, ImagePlane waits for the orchestrator `"ready"` event. `syncCover()` then implements CSS-style `object-fit: cover` by repeating and offsetting the texture so the image fills the plane and the overflow is cropped, centered.
 
 ---
 
@@ -279,8 +306,11 @@ Useful folders:
 
 | Folder     | What it controls                                                                                      |
 | ---------- | ----------------------------------------------------------------------------------------------------- |
-| **scene**  | Background color; ground mode `spot` / `image`                                                        |
-| **spot**   | Radius, falloff, colors, damping                                                                      |
+| **scene**  | Background color; ground mode `spot` / `aurora` / `lava` / `bands`; HTML overlay                      |
+| **spot**   | Radius, falloff, colors, damping. Shown only while spot is the active ground                         |
+| **aurora** | Three bands (angle, offset, thickness, edge, wave offset, pointer sensitivity, color) and shared waves |
+| **lava**   | Blob radius and variance, smoothness, edge, speed, travel, pointer blob, four colors                 |
+| **bands**  | Angle, offset, thickness and variance, three waves, edge, four colors                                |
 | **planes** | Grid layout, IOR, thickness, jitter, chroma, grain, rim/trough SDF, highlight, tonemap, `showNormals` |
 
 ---
@@ -289,9 +319,9 @@ Useful folders:
 
 A single frame, in order:
 
-1. SpotPlane raycasts the pointer onto the ground plane and damps the spot uniform. ImagePlane rescales/re-covers if the grid size changed.
+1. Every ground updates. SpotPlane raycasts the pointer onto the ground plane and damps the spot. Aurora, lava, and bands advance their own motion; aurora and lava also read that pointer.
 2. PlaneGrid writes shader uniforms (including the current view-projection).
-3. PlaneGrid hides the tiles, renders background + ground into `grabTarget`, shows the tiles again.
+3. PlaneGrid hides the tiles, renders background + the visible ground into `grabTarget`, shows the tiles again.
 4. The WebGLRenderer renders the full scene. Each glass fragment reconstructs a fake height-field normal, refracts into the grab texture (with optional RGB split), dithers with blue noise, and adds fresnel/edge highlights.
 
 The “cubes” are never extruded meshes. The thickness, rim, and frost are all in the PlaneGrid fragment shader, sampling a ground that was captured a few milliseconds earlier in the same frame.
